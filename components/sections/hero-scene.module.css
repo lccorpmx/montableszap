@@ -1,0 +1,128 @@
+/*
+ * Llegada del RZR en el hero. Dos cajas con la proporción exacta de la foto:
+ *   escenario: fondo sin auto → auto (anima) → foto original (aparece al final)
+ *   efectos:   humo, por encima de los degradados del hero para que se lea bien
+ *
+ * Estados en `.scene[data-scene]`:
+ *   idle  → esperando a que carguen las imágenes (auto fuera, foto original oculta)
+ *   play  → corre la animación
+ *   done  → solo queda la foto original (el componente desmonta auto y humo)
+ *
+ * Sin JS o con "reducir movimiento" nada de esto aplica: se ve la foto original.
+ */
+
+.car {
+  position: absolute;
+  transform-origin: 50% 92%;
+}
+
+/* Sombra de contacto que viaja con el auto (el fondo limpio ya no la tiene). */
+.carShadow {
+  position: absolute;
+  inset: auto 4% 1% 6%;
+  height: 16%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.65), transparent);
+}
+
+.puff {
+  position: absolute;
+  aspect-ratio: var(--aspect);
+  background: var(--texture) center / 100% 100% no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(var(--scale-from)) rotate(var(--rotate));
+}
+
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  .scene:not([data-scene="done"]) .original {
+    opacity: 0;
+  }
+
+  .scene[data-scene="idle"] .car {
+    opacity: 0;
+  }
+
+  /* Respaldo: si el JS nunca arranca la escena, la foto aparece sola. */
+  .scene[data-scene="idle"] .original {
+    animation: reveal 0.5s ease-out 3.5s both;
+  }
+
+  /* --drive-ms y --reveal-delay vienen de hero-scene-data.ts */
+  .scene[data-scene="play"] .car {
+    animation: drive-in var(--drive-ms) both;
+  }
+
+  .scene[data-scene="play"] .original {
+    animation: reveal 0.5s ease-out var(--reveal-delay) both;
+  }
+
+  .scene[data-scene="play"] .puff {
+    animation:
+      puff-move var(--duration) cubic-bezier(0.16, 0.7, 0.3, 1) var(--delay) both,
+      puff-fade var(--duration) linear var(--delay) both;
+  }
+}
+
+/* Primer tramo = TRAVEL_END / START_OFFSET / OVERSHOOT / EASE de hero-scene-data.ts */
+@keyframes drive-in {
+  0% {
+    translate: 105% -7%;
+    scale: 0.9;
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.3, 1);
+  }
+  64% {
+    /* frena: se pasa un poco y la trompa se hunde */
+    translate: -2.2% 0.6%;
+    scale: 1.006;
+    rotate: -1.1deg;
+    animation-timing-function: ease-in-out;
+  }
+  80% {
+    /* rebote de la suspensión */
+    translate: 0.6% -0.2%;
+    scale: 0.999;
+    rotate: 0.45deg;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+/* El humo se expande rápido y se frena; la opacidad se sostiene y luego se disipa. */
+@keyframes puff-move {
+  from {
+    transform: translate(-50%, -50%) scale(var(--scale-from)) rotate(var(--rotate));
+  }
+  to {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(var(--scale-to))
+      rotate(calc(var(--rotate) + var(--spin)));
+  }
+}
+
+@keyframes puff-fade {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: var(--opacity);
+  }
+  35% {
+    opacity: calc(var(--opacity) * 0.7);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
